@@ -67,6 +67,14 @@ class PetModelTests(unittest.TestCase):
 
         self.assertEqual(pet.state, PetState.IDLE)
 
+    def test_interaction_while_bored_returns_to_idle(self):
+        pet = PetModel()
+        pet.tick(0.0, (100, 100))
+        pet.tick(60.0, (100, 100))
+
+        pet.interact(70.00)
+        self.assertEqual(pet.state, PetState.IDLE)
+
 
 class MovementTests(unittest.TestCase):
     def test_clamp_position_keeps_pet_inside_screen(self):

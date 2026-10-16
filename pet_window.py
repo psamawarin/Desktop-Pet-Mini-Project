@@ -15,7 +15,7 @@ from PySide6.QtGui import (
 from PySide6.QtSvg import QSvgRenderer
 from PySide6.QtWidgets import QMenu, QWidget
 
-from animation import frame_paths
+from animation import ANIMATION_NAMES, frame_paths
 from pet_logic import FPoint, PetModel, PetState, clamp_position, step_toward, to_pixels
 
 
@@ -24,6 +24,7 @@ class PetWindow(QWidget):
         super().__init__()
         self.pet = pet
         self.on_interaction = on_interaction
+        self.on_rename: Optional[Callable[[], None]] = None
         self.position: FPoint = (0.0, 0.0)
         self.setFixedSize(96, 96)
         asset_dir = Path(__file__).resolve().parent / "assets"
@@ -32,12 +33,15 @@ class PetWindow(QWidget):
                 self._load_pet_image(asset_path)
                 for asset_path in frame_paths(asset_dir, animation_name)
             ]
-            for animation_name in ("idle", "walking_left", "bored")
+            for animation_name in ANIMATION_NAMES
         }
         self._animation_key: Optional[tuple[str, bool]] = None
         self._active_frames: list[QPixmap] = []
         self._frame_index = 0
         self._walking_left = True
+        self._is_hovered = False
+        self._click_animation_active = False
+        self._chasing_cursor = False
         self.setMouseTracking(True)
         self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
         self.setWindowFlags(
@@ -74,6 +78,13 @@ class PetWindow(QWidget):
         )
 
     def _animation_name(self) -> str:
+        # Temporary interaction animations take priority over movement/state frames.
+        if self._click_animation_active:
+            return "click"
+        if self._is_hovered:
+            return "hover"
+        if self._chasing_cursor:
+            return "walking_left"
         if self.pet.state == PetState.BORED:
             return "bored"
         if self.pet.state == PetState.WANDERING:
@@ -101,6 +112,16 @@ class PetWindow(QWidget):
 
     def _advance_animation(self) -> None:
         self._ensure_animation()
+        # Click frames play once; hover and state animations continue looping.
+        if (
+            self._click_animation_active
+            and self._frame_index == len(self._active_frames) - 1
+        ):
+            self._click_animation_active = False
+            self._animation_key = None
+            self._ensure_animation()
+            self.update()
+            return
         self._frame_index = (self._frame_index + 1) % len(self._active_frames)
         self.update()
 
@@ -108,20 +129,46 @@ class PetWindow(QWidget):
         self.pet.name = name
         self.setToolTip(name)
 
+    def set_chasing_cursor(self, chasing: bool) -> None:
+        self._chasing_cursor = chasing
+        self._animation_key = None
+        self._frame_index = 0
+        self.update()
+
     def enterEvent(self, event) -> None:
+        self._is_hovered = True
         self._interact()
         super().enterEvent(event)
 
     def mousePressEvent(self, event) -> None:
-        self._interact()
+        if event.button() == Qt.MouseButton.LeftButton:
+            self._click_animation_active = True
+            self._interact()
         super().mousePressEvent(event)
+
+    def leaveEvent(self, event) -> None:
+        self._is_hovered = False
+        self._animation_key = None
+        self.update()
+        super().leaveEvent(event)
 
     def contextMenuEvent(self, event) -> None:
         menu = QMenu(self)
-        quit_action = QAction("Quit", menu)
-        quit_action.triggered.connect(self._quit_application)
-        menu.addAction(quit_action)
-        menu.exec(event.globalPos())
+        rename_action = QAction("Rename", menu)
+        menu.addAction(rename_action)
+        menu.addSeparator()
+        exit_action = QAction("Exit", menu)
+        menu.addAction(exit_action)
+        selected_action = menu.exec(event.globalPos())
+        if selected_action == rename_action:
+            self._rename_pet()
+        elif selected_action == exit_action:
+            self._quit_application()
+        event.accept()
+
+    def _rename_pet(self) -> None:
+        if self.on_rename is not None:
+            self.on_rename()
 
     def _quit_application(self) -> None:
         application = QGuiApplication.instance()
@@ -130,6 +177,8 @@ class PetWindow(QWidget):
 
     def _interact(self) -> None:
         self.wander_target = None
+        self._animation_key = None
+        self._frame_index = 0
         if self.on_interaction is not None:
             self.on_interaction()
         self.update()
@@ -150,7 +199,10 @@ class PetWindow(QWidget):
             (screen.width(), screen.height()),
         )
         self.move(*to_pixels(self.position))
-        if self.pet.state == PetState.WANDERING and self.position[0] != previous_position[0]:
+        if (
+            (self.pet.state == PetState.WANDERING or self._chasing_cursor)
+            and self.position[0] != previous_position[0]
+        ):
             self._walking_left = self.position[0] < previous_position[0]
             self._ensure_animation()
 
@@ -169,16 +221,18 @@ class PetWindow(QWidget):
             )
 
         self.move_clamped(
-            step_toward(self.position, self.wander_target, 120.0, dt)
+            step_toward(self.position, self.wander_target, 60.0, dt)
         )
 
-    def move_toward_cursor(self, dt: float) -> None:
+    def move_toward_cursor(self, dt: float) -> bool:
         cursor = QCursor.pos()
         target = (
             cursor.x() - self.width() // 2,
             cursor.y() - self.height() // 2,
         )
-        self.move_clamped(step_toward(self.position, target, 48.0, dt))
+        next_position = step_toward(self.position, target, 120, dt)
+        self.move_clamped(next_position)
+        return next_position == target
 
     def paintEvent(self, event) -> None:
         self._ensure_animation()
