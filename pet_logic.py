@@ -29,7 +29,7 @@ class PetModel:
 	cursor_still_after: float = 30.0
 
 	def interact(self, now: float) -> None:
-		self.set_idle()
+		self.state = PetState.IDLE
 		self.last_interaction = now
 
 	def set_idle(self) -> None:
@@ -96,4 +96,4 @@ def step_toward(position: FPoint, target: FPoint, speed: float, dt: float) -> FP
 
 
 def to_pixels(position: FPoint) -> tuple[int, int]:
-	return tuple(floor(value + 0.5) for value in position)
+	return floor(position[0] + 0.5), floor(position[1] + 0.5)

@@ -29,6 +29,7 @@ class PetWindow(QWidget):
             | Qt.WindowType.WindowStaysOnTopHint
         )
         self.setToolTip(self.pet.name)
+        self.wander_target: Optional[FPoint] = None
 
     def _load_pet_image(self, asset_path: Path) -> QPixmap:
         if asset_path.suffix.lower() == ".svg":
@@ -73,6 +74,7 @@ class PetWindow(QWidget):
             application.quit()
 
     def _interact(self) -> None:
+        self.wander_target = None
         if self.on_interaction is not None:
             self.on_interaction()
         self.update()
@@ -97,16 +99,25 @@ class PetWindow(QWidget):
         if self.pet.state != PetState.WANDERING:
             return
 
-        dx, dy = random.choice(
-            [(-18, 0), (18, 0), (0, -18), (0, 18), (-12, -12), (12, 12)]
+        screen = self.screen_rect()
+        max_x = screen.x() + max(0, screen.width() - self.width())
+        max_y = screen.y() + max(0, screen.height() - self.height())
+
+        if self.wander_target is None or self.position == self.wander_target:
+            self.wander_target = (
+                random.uniform(screen.x(), max_x),
+                random.uniform(screen.y(), max_y),
+            )
+
+        self.move_clamped(
+            step_toward(self.position, self.wander_target, 120.0, dt)
         )
-        target = (self.position[0] + dx, self.position[1] + dy)
-        self.move_clamped(step_toward(self.position, target, 36.0, dt))
 
     def move_toward_cursor(self, dt: float) -> None:
         cursor = QCursor.pos()
         target = (
-            (cursor.x() - self.width() // 2, cursor.y() - self.height() // 2),
+            cursor.x() - self.width() // 2,
+            cursor.y() - self.height() // 2,
         )
         self.move_clamped(step_toward(self.position, target, 48.0, dt))
 
