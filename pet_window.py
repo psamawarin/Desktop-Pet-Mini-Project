@@ -3,11 +3,11 @@ from pathlib import Path
 from typing import Callable, Optional
 
 from PySide6.QtCore import QRect, Qt
-from PySide6.QtGui import QCursor, QGuiApplication, QImage, QPainter, QPixmap
+from PySide6.QtGui import QAction, QCursor, QGuiApplication, QImage, QPainter, QPixmap
 from PySide6.QtSvg import QSvgRenderer
-from PySide6.QtWidgets import QWidget
+from PySide6.QtWidgets import QMenu, QWidget
 
-from pet_logic import PetModel, PetState, clamp_position, move_toward
+from pet_logic import FPoint, PetModel, PetState, clamp_position, step_toward, to_pixels
 
 
 class PetWindow(QWidget):
@@ -15,6 +15,7 @@ class PetWindow(QWidget):
         super().__init__()
         self.pet = pet
         self.on_interaction = on_interaction
+        self.position: FPoint = (0.0, 0.0)
         self.setFixedSize(96, 96)
         asset_path = Path(__file__).resolve().parent / "assets" / "pet.svg"
         self.pet_image = self._load_pet_image(asset_path)
@@ -59,6 +60,18 @@ class PetWindow(QWidget):
         self._interact()
         super().mousePressEvent(event)
 
+    def contextMenuEvent(self, event) -> None:
+        menu = QMenu(self)
+        quit_action = QAction("Quit", menu)
+        quit_action.triggered.connect(self._quit_application)
+        menu.addAction(quit_action)
+        menu.exec(event.globalPos())
+
+    def _quit_application(self) -> None:
+        application = QGuiApplication.instance()
+        if application is not None:
+            application.quit()
+
     def _interact(self) -> None:
         if self.on_interaction is not None:
             self.on_interaction()
@@ -70,33 +83,32 @@ class PetWindow(QWidget):
             screen = QGuiApplication.primaryScreen()
         return screen.availableGeometry()
 
-    def move_clamped(self, position: tuple[int, int]) -> None:
+    def move_clamped(self, position: FPoint) -> None:
         screen = self.screen_rect()
-        clamped = clamp_position(
+        self.position = clamp_position(
             position,
             (self.width(), self.height()),
             (screen.x(), screen.y()),
             (screen.width(), screen.height()),
         )
-        self.move(*clamped)
+        self.move(*to_pixels(self.position))
 
-    def wander_step(self) -> None:
+    def wander_step(self, dt: float) -> None:
         if self.pet.state != PetState.WANDERING:
             return
 
         dx, dy = random.choice(
             [(-18, 0), (18, 0), (0, -18), (0, 18), (-12, -12), (12, 12)]
         )
-        self.move_clamped((self.x() + dx, self.y() + dy))
+        target = (self.position[0] + dx, self.position[1] + dy)
+        self.move_clamped(step_toward(self.position, target, 36.0, dt))
 
-    def move_toward_cursor(self) -> None:
+    def move_toward_cursor(self, dt: float) -> None:
         cursor = QCursor.pos()
-        next_position = move_toward(
-            (self.x(), self.y()),
+        target = (
             (cursor.x() - self.width() // 2, cursor.y() - self.height() // 2),
-            24,
         )
-        self.move_clamped(next_position)
+        self.move_clamped(step_toward(self.position, target, 48.0, dt))
 
     def paintEvent(self, event) -> None:
         painter = QPainter(self)
