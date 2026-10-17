@@ -1,7 +1,5 @@
 # Desktop Pet
 
-> This file explains who the project is for, what it should do, and how to run it.
-
 ## Purpose
 A small Python application for users to interact with a virtual pet on their desktop. 
 
@@ -23,11 +21,11 @@ python -m venv .venv
 pip install PySide6
 ```
 - Run: Execute `python main.py`.
-- Run tests: Execute `python -m unittest`.
+- Run tests: Execute `python -m unittest discover`.
 
 ## Author and acknowledgements
 - Name / student ID: Samawarin Phakdeewanit 6681338
 - AI tools used: Copilot
-- External code/resources: 
+- External code/resources: None
 
 See PLAN.md for the implementation plan and EVIDENCE.md for results and decisions.
