@@ -18,7 +18,7 @@ A small Python application for users to interact with a virtual pet on their des
 ```powershell
 python -m venv .venv
 .venv\Scripts\activate
-pip install PySide6
+pip install -r requirements.txt
 ```
 - Run: Execute `python main.py`.
 - Run tests: Execute `python -m unittest discover`.

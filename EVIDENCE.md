@@ -1,6 +1,5 @@
 # Checks and decisions
 
-> This file records what I checked, what actually happened, and why I accepted or changed the work. It does not repeat setup instructions or the implementation plan.
 
 ## Concrete checks
 Write the first two expectations before implementation. Fill in actual results after running them.
@@ -10,7 +9,7 @@ Write the first two expectations before implementation. Fill in actual results a
 | C1 / R2 — naming | The application starts and the pet has no saved name | user enters a name and saves it | The name is saved to a local JSON file | Pass `test_storage.py` tests, and manually confirmed by renaming pet |
 | C2 / R1 — screen boundary | The pet is at the right or bottom edge of the visible screen. | The pet attempts to wander | The pet stays within the visible boundary and does not wander out | Pass, supported by `test_pet_logic.py` boundary tests |
 | C3 / R3 - bored state | The pet is `idle` and there hasn't been a click or a hover for 1 minute | The inactivity timer expires | The state changes to `bored` | Pass, supported by bored state tests in `test_pet_logic.py` |
-| C4 / R3 - cursor movement | The pet is `bored` and the mouse has not moved for 30 seconds | The cursor inactivity timer expires | The pet moves toward the cursor and then returns to `idle` | Pass, manually confirmed that the pet moves towards the cursor when timer runs out. `test_pet_logic.py` test confirm the bored timer event and return to idle |
+| C4 / R3 - run to cursor | The pet is `bored` and the mouse has not moved for 30 seconds | The cursor inactivity timer expires | The pet moves toward the cursor and then returns to `idle` | Pass, manually confirmed that the pet moves towards the cursor when timer runs out. `test_pet_logic.py` test confirm the bored timer event and return to idle |
 
 
 ## Two review decisions
@@ -21,7 +20,7 @@ Write the first two expectations before implementation. Fill in actual results a
 ## Automated tests
 - Test file and behaviour checked: `test_animation.py`, `test_pet_logic.py` and `test_storage.py`
 - Command I ran: python -m unittest discover
-- Final result: All 21 tests pass with no errors.
+- Final result: All 22 tests pass with no errors.
 - Correction and rerun, if needed: None needed.
 
 ## Realistic use and final judgment
